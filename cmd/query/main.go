@@ -27,9 +27,9 @@ type DatabaseProvider struct {
 }
 
 // Обработчики HTTP-запросов
-func (h *Handlers) GetHello(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	msg, err := h.dbProvider.SelectHello()
+	msg, err := h.dbProvider.GetName()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -39,10 +39,10 @@ func (h *Handlers) GetHello(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handlers) PostHello(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) PostName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	input := struct {
-		Msg string `json:"msg"`
+		Name string `json:"name"`
 	}{}
 
 	decoder := json.NewDecoder(r.Body)
@@ -52,7 +52,7 @@ func (h *Handlers) PostHello(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 	}
 
-	err = h.dbProvider.InsertHello(input.Msg)
+	err = h.dbProvider.SetName(input.Name)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -62,23 +62,19 @@ func (h *Handlers) PostHello(w http.ResponseWriter, r *http.Request) {
 }
 
 // Методы для работы с базой данных
-func (dp *DatabaseProvider) SelectHello() (string, error) {
-	var msg string
-
-	// Получаем одно сообщение из таблицы hello, отсортированной в случайном порядке
-	row := dp.db.QueryRow("SELECT message FROM hello ORDER BY RANDOM() LIMIT 1")
-	err := row.Scan(&msg)
+func (dp *DatabaseProvider) GetName() (string, error) {
+	var name string
+	row := dp.db.QueryRow("SELECT name FROM query LIMIT 1")
+	err := row.Scan(&name)
 	if err != nil {
-		fmt.Println(err)
 		return "", err
 	}
 
-	return msg, nil
+	return name, nil
 }
-func (dp *DatabaseProvider) InsertHello(msg string) error {
-	_, err := dp.db.Exec("INSERT INTO hello (message) VALUES ($1)", msg)
+func (dp *DatabaseProvider) SetName(name string) error {
+	_, err := dp.db.Exec("UPDATE query SET name = ($1)", name)
 	if err != nil {
-		fmt.Println("Hello")
 		return err
 	}
 
@@ -104,11 +100,11 @@ func main() {
 	h := Handlers{dbProvider: dp}
 
 	// Регистрируем обработчики
-	http.HandleFunc("/get", h.GetHello)
-	http.HandleFunc("/post", h.PostHello)
+	http.HandleFunc("/name/set", h.PostName)
+	http.HandleFunc("/name/get", h.GetName)
 
 	// Запускаем веб-сервер на указанном адресе
-	err = http.ListenAndServe(":8081", nil)
+	err = http.ListenAndServe(":8082", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
